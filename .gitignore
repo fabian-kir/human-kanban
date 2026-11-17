@@ -1,0 +1,6 @@
+.kanban-sync.json
+.kanban-backups/
+.kanban-write-*
+__pycache__/
+*.pyc
+.DS_Store

@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Human Kanban</title>
+  <style>
+    :root{--paper:#f6f7f9;--ink:#192431;--muted:#707d89;--stroke:#dfe5e9;--white:#fff;--accent:#266e6c;--accent-soft:#e1efed;--red:#b34840;--yellow:#ac7c20;--radius:16px;--shadow:0 10px 30px rgba(24,42,52,.045)}
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{min-height:100%;margin:0}
+    body{background:var(--paper);color:var(--ink);font:15px/1.48 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif}
+    button,input,textarea{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.46}
+    button:focus-visible,input:focus-visible,textarea:focus-visible,article:focus-visible{outline:3px solid #83b9b3;outline-offset:2px}
+    .shell{max-width:1700px;margin:0 auto;padding:28px clamp(18px,3.4vw,54px) 30px}
+    .brandbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:27px;border-bottom:1px solid var(--stroke)}
+    .brand{display:flex;align-items:center;gap:11px;font-size:14px;font-weight:800;letter-spacing:.02em;color:#293c40}
+    .brandmark{display:grid;grid-template-columns:repeat(2,10px);grid-template-rows:repeat(2,10px);gap:4px;transform:rotate(-7deg)}
+    .brandmark span{border-radius:3px;background:#387b76}.brandmark span:nth-child(2){background:#8bb7a6}.brandmark span:nth-child(3){background:#d1ded6}.brandmark span:nth-child(4){background:#528f83}
+    .right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .sync-status{display:flex;align-items:center;gap:8px;color:#4d6466;font-size:12px;font-weight:650;max-width:450px;text-align:right}
+    .status-dot{width:8px;height:8px;flex:none;background:#9ea8af;border-radius:50%}
+    .sync-status[data-mode="synced"] .status-dot{background:#4a9878}
+    .sync-status[data-mode="pending"] .status-dot,.sync-status[data-mode="checking"] .status-dot{background:#d4a443}
+    .sync-status[data-mode="conflict"] .status-dot{background:#c26857}
+    .top-icon{border:1px solid var(--stroke);background:#fff;border-radius:10px;padding:8px 12px;color:#4c6366;font-size:13px;white-space:nowrap}
+    .top-icon:hover:not(:disabled){border-color:#aebfc1;background:#fafffe}
+    .hero{display:flex;justify-content:space-between;align-items:flex-end;gap:25px;padding:34px 0 23px}
+    .overline{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
+    .overline:before{content:"";width:19px;height:2px;background:var(--accent);border-radius:4px}
+    .heading{display:flex;align-items:center;gap:13px}
+    h1{font-size:clamp(27px,3.2vw,41px);line-height:1.14;letter-spacing:-.047em;margin:10px 0 8px;font-weight:760}
+    .subtitle{color:var(--muted);font-size:14px;margin:0}
+    .edit-title{background:none;border:0;color:#84959a;padding:8px;font-size:18px;border-radius:10px}
+    .edit-title:hover{background:#e9eeef;color:var(--ink)}
+    .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .search{border:1px solid var(--stroke);border-radius:11px;background:#fff;color:var(--ink);padding:11px 13px;width:210px;outline:none;font-size:13px}
+    .search:focus{border-color:#83b9b3}
+    .primary{background:var(--accent);border:1px solid var(--accent);color:#fff;font-weight:690;padding:11px 16px;border-radius:11px;white-space:nowrap}
+    .primary:hover:not(:disabled){background:#1e5b59}
+    .secondary{background:#fff;border:1px solid var(--stroke);color:var(--ink);font-weight:650;padding:10px 14px;border-radius:10px}
+    .secondary:hover:not(:disabled){border-color:#aac1be}
+    .danger{color:var(--red)}
+    .banner{display:flex;align-items:flex-start;gap:12px;border:1px solid #e8d6b5;background:#fff9ed;color:#73582c;border-radius:12px;padding:12px 15px;margin:0 0 20px;font-size:13px}
+    .banner strong{color:#634923}
+    .banner span{flex:1}.banner[hidden]{display:none}
+    .banner-actions{display:flex;gap:7px;flex-wrap:wrap}
+    .banner button{padding:7px 10px;font-size:12px;background:#fff;border:1px solid #e2c99d;border-radius:7px;color:#675130;font-weight:700}
+    .board{display:flex;gap:16px;align-items:stretch;overflow-x:auto;padding:0 0 24px;min-height:310px;scrollbar-color:#c2d0d0 transparent}
+    .column{display:flex;flex:0 0 clamp(254px,25vw,316px);flex-direction:column;min-height:270px;max-height:calc(100vh - 270px);min-width:0;border:1px solid var(--stroke);border-radius:var(--radius);background:#edf1f2a8;box-shadow:0 2px 5px rgba(30,48,54,.012)}
+    .column[data-column="0"]{background:#f0f1ef}.column[data-column="1"]{background:#eef3f1}.column[data-column="2"]{background:#edf2f5}.column[data-column="3"]{background:#f2f0f2}.column[data-column="4"]{background:#eff3f0}
+    .column-head{display:flex;align-items:center;gap:10px;padding:16px 14px 12px;min-height:59px}
+    .marker{width:8px;height:8px;border-radius:50%;background:#a8adb0;flex:none}.column[data-column="1"] .marker{background:#79a99b}.column[data-column="2"] .marker{background:#739fc0}.column[data-column="3"] .marker{background:#b3a2be}.column[data-column="4"] .marker{background:#7eaf8b}
+    .column-head h2{margin:0;font-size:14px;letter-spacing:-.015em;font-weight:760;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .count{font-size:11px;color:#657580;font-weight:700;background:#fff9;border:1px solid #dce5e4;border-radius:999px;min-width:25px;padding:1px 6px;text-align:center}
+    .column-settings{border:0;color:#819195;background:transparent;padding:0 6px;font-size:20px;line-height:1;border-radius:6px}
+    .column-settings:hover{background:#fff;color:var(--ink)}
+    .card-list{overflow-y:auto;min-height:75px;flex:1;display:flex;flex-direction:column;gap:9px;padding:0 11px 12px}
+    .card{padding:15px 15px 14px;background:#fff;border:1px solid #e1e7e7;border-radius:12px;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .14s,transform .14s,border .14s;flex-shrink:0}
+    .card:hover{border-color:#acc7c1;box-shadow:0 9px 23px #233f4320;transform:translateY(-1px)}
+    .card[draggable="true"]{cursor:grab}.card[draggable="true"]:active{cursor:grabbing}
+    .card.dragging{opacity:.4}.card.drop-before{border-top:3px solid var(--accent)}.column.dragover .card-list{outline:2px dashed #9dbfb8;outline-offset:-6px;border-radius:9px}
+    .card-title{font-size:14px;font-weight:690;line-height:1.42;overflow-wrap:anywhere}.card-desc{font-size:12px;color:#7b8990;margin:7px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;overflow-wrap:anywhere}
+    .card-number{margin-top:12px;font-size:10px;letter-spacing:.07em;color:#a3afb2;font-weight:680;text-transform:uppercase}
+    .empty{font-size:12px;color:#89989b;text-align:center;padding:35px 8px 30px;margin:auto 0}
+    .add-card{border:1px dashed #bacbcc;background:transparent;color:#5d7776;border-radius:10px;margin:0 11px 12px;padding:10px 12px;font-size:12px;font-weight:760;text-align:left}
+    .add-card:hover{border-color:var(--accent);background:#fff9}
+    .footer{padding-top:18px;color:#819096;font-size:12px;display:flex;align-items:center;gap:8px;justify-content:space-between;border-top:1px solid var(--stroke)}
+    .footer code{font-size:11px;border:1px solid #e1e7e7;padding:3px 6px;border-radius:5px;color:#75868b;background:#fff}
+    dialog{position:fixed;inset:0;border:1px solid #d9e4e2;border-radius:18px;box-shadow:0 30px 100px #091c2870;padding:0;background:#fff;color:var(--ink);width:min(510px,calc(100vw - 32px));max-height:90vh;overflow:auto}
+    dialog::backdrop{background:#152d36a8;backdrop-filter:blur(3px)}
+    .dialog-inner{padding:25px 27px 23px}.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}
+    .dialog-head h2{font-size:20px;letter-spacing:-.03em;margin:0}
+    .close{border:0;background:transparent;color:#859096;font-size:25px;line-height:1;padding:3px 5px;border-radius:7px}
+    .close:hover{background:#edf1f1}
+    .field{display:block;margin-bottom:16px;font-size:12px;font-weight:760;color:#67777e}
+    .field input,.field textarea,.field select{margin-top:7px;display:block;width:100%;padding:11px 12px;font-size:14px;font-weight:450;color:var(--ink);border:1px solid #d8e2e3;border-radius:10px;background:#fafcfc;outline:none;resize:vertical}
+    .field input:focus,.field textarea:focus,.field select:focus{border-color:#78ada5;background:#fff}
+    .field textarea{min-height:150px;line-height:1.5}
+    .field[hidden]{display:none}
+    .dialog-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding-top:9px}
+    .dialog-actions .delete{margin-right:auto;border:0;background:none;color:var(--red);font-weight:650;padding:8px 0}
+    .dialog-error{color:var(--red);font-size:12px;margin:0 0 12px;min-height:0}
+    .readonly-bubble{font-size:12px;background:#ecf2f1;color:#4d7571;padding:8px 10px;border-radius:8px;margin-bottom:16px}
+    [hidden]{display:none!important}
+    @media(max-width:800px){.shell{padding:17px}.brandbar{padding-bottom:17px;align-items:flex-start}.hero{align-items:flex-start;flex-direction:column;padding-top:23px}.tools{width:100%}.search{width:auto;flex:1}.column{flex-basis:280px;max-height:calc(100dvh - 310px)}.sync-status{max-width:230px}.footer{flex-wrap:wrap}}
+    @media(prefers-reduced-motion:reduce){.card{transition:none}.card:hover{transform:none}}
+  </style>
+  <!-- This file works from file:// without a server. board.js is the only state file. -->
+  <script src="./board.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="brandbar">
+      <div class="brand"><span class="brandmark" aria-hidden="true"><span></span><span></span><span></span><span></span></span> HUMAN KANBAN</div>
+      <div class="right"><div id="syncStatus" class="sync-status" data-mode="local" role="status" aria-live="polite"><span class="status-dot"></span><span id="syncText">Checking server…</span></div><button class="top-icon" id="refresh" type="button" title="Reload board state">Refresh</button></div>
+    </header>
+    <section class="hero" aria-label="Board controls">
+      <div><div class="overline">Your workspace</div><div class="heading"><h1 id="boardTitle">My board</h1><button class="edit-title edit-control" id="renameBoard" type="button" title="Rename board" aria-label="Rename board">✎</button></div><p class="subtitle">See what matters. Move work forward. Keep it simple.</p></div>
+      <div class="tools"><input class="search" type="search" id="search" placeholder="Search cards…" aria-label="Search cards"><button class="primary edit-control" id="addColumn" type="button">+ Add column</button></div>
+    </section>
+    <div class="banner" id="banner" role="alert" hidden><strong id="bannerHeading"></strong><span id="bannerText"></span><div id="bannerActions" class="banner-actions"></div></div>
+    <main id="board" class="board" aria-label="Kanban columns"></main>
+    <footer class="footer"><span id="footerText">Open index.html to view your board without starting anything.</span><code>board.js · one state file</code></footer>
+  </div>
+  <dialog id="cardDialog" aria-labelledby="cardDialogTitle">
+    <div class="dialog-inner">
+      <div class="dialog-head"><h2 id="cardDialogTitle">Card</h2><button class="close" type="button" data-close="cardDialog" aria-label="Close">×</button></div>
+      <p class="readonly-bubble" id="cardReadOnly" hidden>Viewing only. Start the local server to edit cards.</p>
+      <label class="field">Title <input id="cardTitle" maxlength="180" required placeholder="What needs to happen?"></label>
+      <label class="field">Description <textarea id="cardDescription" maxlength="10000" placeholder="Add notes, context, or a definition of done…"></textarea></label>
+      <label class="field" id="cardMoveField">Column <select id="cardColumn"></select></label>
+      <p class="dialog-error" id="cardError"></p>
+      <div class="dialog-actions"><button type="button" class="delete edit-control" id="deleteCard">Delete card</button><button type="button" class="secondary" data-close="cardDialog">Close</button><button type="button" class="primary edit-control" id="saveCard">Save card</button></div>
+    </div>
+  </dialog>
+  <dialog id="nameDialog" aria-labelledby="nameDialogTitle">
+    <div class="dialog-inner">
+      <div class="dialog-head"><h2 id="nameDialogTitle">Rename</h2><button type="button" class="close" data-close="nameDialog" aria-label="Close">×</button></div>
+      <label class="field">Name <input id="nameInput" maxlength="90" required></label>
+      <p class="dialog-error" id="nameError"></p>
+      <div class="dialog-actions"><button type="button" class="delete" id="deleteColumn">Delete column</button><button type="button" class="secondary" data-close="nameDialog">Cancel</button><button type="button" class="primary" id="saveName">Save</button></div>
+    </div>
+  </dialog>
+  <script>
+  (() => {
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    const clone = (x) => JSON.parse(JSON.stringify(x));
+    const initial = window.KANBAN_BOARD;
+    let board = initial && typeof initial === "object" ? clone(initial) : null;
+    let revision = null;
+    let editing = false;
+    let sync = {mode:"local", error:null};
+    let editingCard = null;
+    let editingColumn = null;
+    let nameTarget = null;
+    let remoteChangedWhileEditing = false;
+    let draggingId = null;
+    const onServer = window.location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(location.hostname);
+    const modalOpen = () => $("cardDialog").open || $("nameDialog").open;
+    const isWritable = () => editing && sync.mode !== "conflict" && sync.mode !== "checking";
+    const uniqueId = () => typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "id-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+
+    function statusMessage() {
+      if (!onServer || !editing) return "Read-only · local HTML";
+      if (sync.mode === "synced") return "Saved · GitHub synchronized";
+      if (sync.mode === "pending") return "Saved locally · waiting for GitHub";
+      if (sync.mode === "checking") return "Checking GitHub…";
+      if (sync.mode === "conflict") return "Sync conflict · action needed";
+      return "Local editing · GitHub not connected";
+    }
+    function statusUI() {
+      $("syncStatus").dataset.mode = editing ? sync.mode : "local";
+      $("syncText").textContent = statusMessage();
+      $("renameBoard").hidden = !isWritable();
+      $("addColumn").hidden = !isWritable();
+      $("footerText").textContent = !editing ?
+        "Read-only view. Run the local launcher to edit; no server is needed to read." :
+        sync.mode === "synced" ? `Only ${sync.path || "board.js"} syncs with GitHub. No git pull or push is run.` :
+        "Every edit is saved to board.js. Cloud sync is separate and never overwrites conflicts.";
+      const message = $("banner");
+      const actions = $("bannerActions");
+      actions.replaceChildren();
+      const text = sync.error || "";
+      if (!board) {
+        showBanner("Board unavailable", "board.js is missing or not readable. Keep it beside index.html.");
+      } else if (!editing) {
+        showBanner("Read-only mode", onServer ? "The editing server is unavailable. Open index.html directly or start the launcher." : "The local server is not required for viewing. Start the launcher to enable editing and synchronization.");
+      } else if (sync.mode === "conflict") {
+        showBanner("Two versions need a choice", text);
+        actions.append(actionButton("Keep GitHub", () => resolveConflict("remote")));
+        actions.append(actionButton("Keep local", () => resolveConflict("local")));
+      } else if (sync.mode === "pending" || sync.mode === "local") {
+        showBanner(sync.mode === "local" ? "Editing locally" : "Not yet synced", text || "Saved in board.js. GitHub synchronization is retried automatically.");
+      } else {
+        message.hidden = true;
+      }
+    }
+    function actionButton(label, handler) {
+      const button = document.createElement("button"); button.textContent = label;
+      button.type = "button"; button.addEventListener("click", handler); return button;
+    }
+    function showBanner(heading, message) {
+      $("bannerHeading").textContent = heading;
+      $("bannerText").textContent = message;
+      $("banner").hidden = false;
+    }
+    function cardCount() { return board ? board.columns.reduce((n, col) => n + col.cards.length, 0) : 0; }
+    function make(tag, className, content) {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (content !== undefined) el.textContent = String(content);
+      return el;
+    }
+    function filtered(card) {
+      const term = $("search").value.trim().toLowerCase();
+      return !term || `${card.title} ${card.description}`.toLowerCase().includes(term);
+    }
+    function render() {
+      $("boardTitle").textContent = board ? board.title : "Board unavailable";
+      const area = $("board"); area.replaceChildren();
+      statusUI();
+      if (!board || !Array.isArray(board.columns)) return;
+      for (const [columnIndex, column] of board.columns.entries()) {
+        const pane = make("section", "column"); pane.dataset.column = String(columnIndex);
+        pane.setAttribute("aria-label", column.title);
+        const head = make("div", "column-head");
+        head.append(make("span", "marker"), make("h2", "", column.title), make("span", "count", column.cards.length));
+        if (isWritable()) {
+          const options = make("button", "column-settings", "···");
+          options.setAttribute("aria-label", `Rename or delete ${column.title}`);
+          options.addEventListener("click", () => openName("column", column.id));
+          head.append(options);
+        }
+        pane.append(head);
+        const list = make("div", "card-list");
+        const shown = column.cards.filter(filtered);
+        if (!shown.length) list.append(make("p", "empty", column.cards.length ? "No matching cards" : "Nothing here yet"));
+        shown.forEach((card) => {
+          const el = make("article", "card"); el.tabIndex = 0;
+          el.setAttribute("role", "button"); el.setAttribute("aria-label", `Open ${card.title}`);
+          el.append(make("div", "card-title", card.title));
+          if (card.description) el.append(make("p", "card-desc", card.description));
+          el.append(make("div", "card-number", `Card · ${column.title}`));
+          el.addEventListener("click", () => openCard(card.id, column.id));
+          el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") {e.preventDefault(); openCard(card.id, column.id);} });
+          if (isWritable() && !$("search").value.trim()) {
+            el.draggable = true;
+            el.addEventListener("dragstart", (e) => {
+              draggingId = card.id; e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", card.id);
+              requestAnimationFrame(() => el.classList.add("dragging"));
+            });
+            el.addEventListener("dragend", () => { draggingId = null; document.querySelectorAll(".dragging,.drop-before,.dragover").forEach(n => n.classList.remove("dragging", "drop-before", "dragover")); });
+            el.addEventListener("dragover", (e) => {
+              if (!draggingId || draggingId === card.id) return;
+              e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move";
+              el.classList.add("drop-before");
+            });
+            el.addEventListener("dragleave", () => el.classList.remove("drop-before"));
+            el.addEventListener("drop", (e) => {
+              if (!draggingId) return;
+              e.preventDefault(); e.stopPropagation();
+              const from = draggingId; draggingId = null;
+              moveCard(from, column.id, card.id);
+            });
+          }
+          list.append(el);
+        });
+        if (isWritable() && !$("search").value.trim()) {
+          list.addEventListener("dragover", (e) => {if (draggingId){e.preventDefault();pane.classList.add("dragover");}});
+          list.addEventListener("dragleave", (e) => {if (!list.contains(e.relatedTarget)) pane.classList.remove("dragover");});
+          list.addEventListener("drop", (e) => {
+            if (!draggingId) return; e.preventDefault();
+            const from = draggingId; draggingId = null;
+            moveCard(from, column.id, null);
+          });
+        }
+        pane.append(list);
+        if (isWritable()) {
+          const add = make("button", "add-card", "+ Add a card");
+          add.addEventListener("click", () => openCard(null, column.id));
+          pane.append(add);
+        }
+        area.append(pane);
+      }
+    }
+    async function fetchBoard(force = false) {
+      if (!onServer) return;
+      try {
+        const result = await fetch("/api/board", {cache:"no-store"});
+        if (!result.ok) throw new Error(`Server replied ${result.status}`);
+        const data = await result.json();
+        editing = true;
+        sync = data.sync;
+        if (modalOpen() && !force && revision !== null && data.revision !== revision) {
+          remoteChangedWhileEditing = true;
+          showDialogError("The board changed in another window. Close this editor to load the new version.");
+          statusUI();
+          return;
+        }
+        board = data.board;
+        revision = data.revision;
+        remoteChangedWhileEditing = false;
+        render();
+      } catch (e) {
+        editing = false;
+        sync = {mode:"local",error:String(e.message || e)};
+        render();
+      }
+    }
+    function showDialogError(text) {
+      if ($("cardDialog").open) $("cardError").textContent = text;
+      else if ($("nameDialog").open) $("nameError").textContent = text;
+    }
+    async function commit(update) {
+      if (!isWritable()) throw new Error("The board is read-only or has a sync conflict.");
+      const next = clone(board);
+      update(next);
+      const response = await fetch("/api/board", {
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({board:next,revision}),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save the board.");
+      board = data.board; revision = data.revision; sync = data.sync;
+      render();
+    }
+    async function change(mutator, onSuccess) {
+      try {
+        await commit(mutator);
+        if (onSuccess) onSuccess();
+      } catch (e) {
+        const message = String(e.message || e);
+        if (modalOpen()) showDialogError(message);
+        else { showBanner("Could not save", message); }
+      }
+    }
+    function openCard(id, columnId) {
+      if (!board) return;
+      const col = board.columns.find(c => c.id === columnId);
+      const card = col && col.cards.find(c => c.id === id);
+      if (id && !card) return;
+      if (!id && !isWritable()) return;
+      editingCard = id; editingColumn = columnId;
+      $("cardDialogTitle").textContent = id ? "Card details" : "New card";
+      $("cardTitle").value = card ? card.title : "";
+      $("cardDescription").value = card ? card.description : "";
+      $("cardError").textContent = "";
+      $("cardReadOnly").hidden = isWritable();
+      $("cardTitle").disabled = !isWritable(); $("cardDescription").disabled = !isWritable();
+      $("cardMoveField").hidden = !isWritable();
+      $("saveCard").hidden = !isWritable();
+      $("deleteCard").hidden = !isWritable() || !id;
+      const select = $("cardColumn"); select.replaceChildren();
+      board.columns.forEach(c => { const option = new Option(c.title, c.id); select.add(option); });
+      select.value = columnId;
+      $("cardDialog").showModal();
+      if (isWritable()) $("cardTitle").focus();
+    }
+    function openName(type, id = null) {
+      if (!isWritable()) return;
+      nameTarget = {type,id}; $("nameError").textContent = "";
+      const column = type === "column" ? board.columns.find(c => c.id === id) : null;
+      $("nameDialogTitle").textContent = type === "board" ? "Rename board" : type === "add" ? "Add column" : "Edit column";
+      $("nameInput").maxLength = type === "board" ? 90 : 70;
+      $("nameInput").value = type === "board" ? board.title : column ? column.title : "";
+      $("deleteColumn").hidden = type !== "column" || board.columns.length <= 1;
+      $("nameDialog").showModal(); $("nameInput").focus();
+    }
+    function findCard(value, cardId) {
+      for (const col of value.columns) {
+        const index = col.cards.findIndex(card => card.id === cardId);
+        if (index !== -1) return {col,index};
+      }
+      return null;
+    }
+    async function moveCard(cardId, columnId, beforeId) {
+      if (!isWritable()) return;
+      await change((value) => {
+        const source = findCard(value, cardId);
+        const target = value.columns.find(c => c.id === columnId);
+        if (!source || !target || beforeId === cardId) return;
+        const [card] = source.col.cards.splice(source.index,1);
+        const insertIndex = beforeId ? target.cards.findIndex(c => c.id === beforeId) : -1;
+        target.cards.splice(insertIndex < 0 ? target.cards.length : insertIndex, 0, card);
+      });
+    }
+    async function resolveConflict(choice) {
+      const keepLocal = choice === "local";
+      if (!confirm(keepLocal ?
+        "Replace GitHub's board with this local board? The older GitHub version remains available in Git history." :
+        "Use the GitHub board? A backup of your local board will be saved in .kanban-backups/.")) return;
+      try {
+        const response = await fetch("/api/resolve", {
+          method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({choice}),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Resolution failed.");
+        board = data.board; revision = data.revision; sync = data.sync; render();
+      } catch (e) {showBanner("Could not resolve conflict", String(e.message || e));}
+    }
+    $("saveCard").addEventListener("click", async () => {
+      const title = $("cardTitle").value.trim();
+      if (!title) {$("cardError").textContent = "Give this card a title.";return;}
+      const description = $("cardDescription").value;
+      const destination = $("cardColumn").value;
+      await change((value) => {
+        const target = value.columns.find(c => c.id === destination);
+        if (editingCard) {
+          const existing = findCard(value, editingCard);
+          if (!existing) throw new Error("Card no longer exists.");
+          const previousColumn = existing.col;
+          const previousIndex = existing.index;
+          const [card] = previousColumn.cards.splice(previousIndex,1);
+          card.title = title; card.description = description;
+          if (previousColumn === target) target.cards.splice(previousIndex, 0, card);
+          else target.cards.push(card);
+        } else target.cards.push({id:uniqueId(),title,description});
+      }, () => $("cardDialog").close());
+    });
+    $("deleteCard").addEventListener("click", async () => {
+      if (!confirm("Delete this card?")) return;
+      await change((value) => {
+        const found = findCard(value, editingCard);
+        if (found) found.col.cards.splice(found.index,1);
+      }, () => $("cardDialog").close());
+    });
+    $("saveName").addEventListener("click", async () => {
+      const value = $("nameInput").value.trim();
+      if (!value) {$("nameError").textContent = "Enter a name.";return;}
+      await change((next) => {
+        if (nameTarget.type === "board") next.title = value;
+        else if (nameTarget.type === "add") next.columns.push({id:uniqueId(),title:value,cards:[]});
+        else next.columns.find(c => c.id === nameTarget.id).title = value;
+      }, () => $("nameDialog").close());
+    });
+    $("deleteColumn").addEventListener("click", async () => {
+      const col = board.columns.find(c => c.id === nameTarget.id);
+      if (col.cards.length) {$("nameError").textContent = "Move or delete its cards first.";return;}
+      if (!confirm(`Delete column “${col.title}”?`)) return;
+      await change(next => {next.columns = next.columns.filter(c => c.id !== col.id);}, () => $("nameDialog").close());
+    });
+    $("renameBoard").addEventListener("click", () => openName("board"));
+    $("addColumn").addEventListener("click", () => openName("add"));
+    $("search").addEventListener("input", render);
+    $("refresh").addEventListener("click", () => {
+      if (modalOpen()) { showDialogError("Close the editor before refreshing."); return; }
+      if (onServer) fetchBoard(true);
+      else location.reload();
+    });
+    document.querySelectorAll("[data-close]").forEach(button => button.addEventListener("click", () => $(button.dataset.close).close()));
+    [$("cardDialog"),$("nameDialog")].forEach(dialog => {
+      dialog.addEventListener("click", e => {if (e.target === dialog) dialog.close();});
+      dialog.addEventListener("close", () => {if (remoteChangedWhileEditing) fetchBoard(true);});
+    });
+    $("cardTitle").addEventListener("keydown", e => {if (e.key === "Enter" && isWritable()){e.preventDefault();$("saveCard").click();}});
+    $("nameInput").addEventListener("keydown", e => {if (e.key === "Enter" && isWritable()){e.preventDefault();$("saveName").click();}});
+    if (board) render(); else statusUI();
+    if (onServer) {
+      fetchBoard();
+      setInterval(() => { if (!modalOpen()) fetchBoard(); }, 12000);
+    }
+  })();
+  </script>
+</body>
+</html>
