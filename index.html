@@ -82,6 +82,8 @@
     .field[hidden]{display:none}
     .dialog-actions{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding-top:9px}
     .dialog-actions .delete{margin-right:auto;border:0;background:none;color:var(--red);font-weight:650;padding:8px 0}
+    .primary.danger{background:var(--red);border-color:var(--red);color:#fff}.primary.danger:hover:not(:disabled){background:var(--red);filter:brightness(.9)}
+    #confirmDialog{width:min(420px,calc(100vw - 32px))}#confirmText{margin:0 0 18px;line-height:1.5}
     .dialog-error{color:var(--red);font-size:12px;margin:0 0 12px;min-height:0}
     .readonly-bubble{font-size:12px;background:#ecf2f1;color:#4d7571;padding:8px 10px;border-radius:8px;margin-bottom:16px}
     [hidden]{display:none!important}
@@ -123,6 +125,14 @@
       <p class="dialog-error" id="nameError"></p>
       <div class="dialog-actions"><button type="button" class="delete" id="deleteColumn">Delete column</button><button type="button" class="secondary" data-close="nameDialog">Cancel</button><button type="button" class="primary" id="saveName">Save</button></div>
     </div>
+  </dialog>
+  <!-- Our own confirmation box: Safari may silently suppress window.confirm() after a few prompts. -->
+  <dialog id="confirmDialog" aria-labelledby="confirmTitle">
+    <form method="dialog" class="dialog-inner">
+      <div class="dialog-head"><h2 id="confirmTitle">Are you sure?</h2></div>
+      <p id="confirmText"></p>
+      <div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="ok" class="primary" id="confirmOk">OK</button></div>
+    </form>
   </dialog>
   <script>
   (() => {
@@ -292,6 +302,15 @@
         render();
       }
     }
+    function askConfirm(message, okLabel = "OK", danger = false) {
+      const dialog = $("confirmDialog");
+      $("confirmText").textContent = message;
+      $("confirmOk").textContent = okLabel;
+      $("confirmOk").classList.toggle("danger", danger);
+      dialog.returnValue = "cancel";
+      dialog.showModal(); $("confirmOk").focus();
+      return new Promise(resolve => dialog.addEventListener("close", () => resolve(dialog.returnValue === "ok"), {once:true}));
+    }
     function showDialogError(text) {
       if ($("cardDialog").open) $("cardError").textContent = text;
       else if ($("nameDialog").open) $("nameError").textContent = text;
@@ -371,9 +390,10 @@
     }
     async function resolveConflict(choice) {
       const keepLocal = choice === "local";
-      if (!confirm(keepLocal ?
+      if (!await askConfirm(keepLocal ?
         "Replace GitHub's board with this local board? The older GitHub version remains available in Git history." :
-        "Use the GitHub board? A backup of your local board will be saved in .kanban-backups/.")) return;
+        "Use the GitHub board? A backup of your local board will be saved in .kanban-backups/.",
+        keepLocal ? "Keep local" : "Keep GitHub")) return;
       try {
         const response = await fetch("/api/resolve", {
           method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({choice}),
@@ -403,7 +423,7 @@
       }, () => $("cardDialog").close());
     });
     $("deleteCard").addEventListener("click", async () => {
-      if (!confirm("Delete this card?")) return;
+      if (!await askConfirm("Delete this card?", "Delete card", true)) return;
       await change((value) => {
         const found = findCard(value, editingCard);
         if (found) found.col.cards.splice(found.index,1);
@@ -421,7 +441,7 @@
     $("deleteColumn").addEventListener("click", async () => {
       const col = board.columns.find(c => c.id === nameTarget.id);
       if (col.cards.length) {$("nameError").textContent = "Move or delete its cards first.";return;}
-      if (!confirm(`Delete column “${col.title}”?`)) return;
+      if (!await askConfirm(`Delete column “${col.title}”?`, "Delete column", true)) return;
       await change(next => {next.columns = next.columns.filter(c => c.id !== col.id);}, () => $("nameDialog").close());
     });
     $("renameBoard").addEventListener("click", () => openName("board"));
