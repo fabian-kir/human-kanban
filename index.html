@@ -28,11 +28,8 @@
     .top-icon{border:1px solid var(--stroke);background:#fff;border-radius:10px;padding:8px 12px;color:#4c6366;font-size:13px;white-space:nowrap}
     .top-icon:hover:not(:disabled){border-color:#aebfc1;background:#fafffe}
     .hero{display:flex;justify-content:space-between;align-items:flex-end;gap:25px;padding:34px 0 23px}
-    .overline{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
-    .overline:before{content:"";width:19px;height:2px;background:var(--accent);border-radius:4px}
     .heading{display:flex;align-items:center;gap:13px}
     h1{font-size:clamp(27px,3.2vw,41px);line-height:1.14;letter-spacing:-.047em;margin:10px 0 8px;font-weight:760}
-    .subtitle{color:var(--muted);font-size:14px;margin:0}
     .edit-title{background:none;border:0;color:#84959a;padding:8px;font-size:18px;border-radius:10px}
     .edit-title:hover{background:#e9eeef;color:var(--ink)}
     .tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -63,12 +60,13 @@
     .card[draggable="true"]{cursor:grab}.card[draggable="true"]:active{cursor:grabbing}
     .card.dragging{opacity:.4}.card.drop-before{border-top:3px solid var(--accent)}.column.dragover .card-list{outline:2px dashed #9dbfb8;outline-offset:-6px;border-radius:9px}
     .card-title{font-size:14px;font-weight:690;line-height:1.42;overflow-wrap:anywhere}.card-desc{font-size:12px;color:#7b8990;margin:7px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;overflow-wrap:anywhere}
+    .column.coloured{border-top:3px solid var(--column-colour)}.column.coloured .marker{background:var(--column-colour)}
+    .field input[type=color]{width:64px;height:38px;padding:3px;cursor:pointer}
     .card-number{margin-top:12px;font-size:10px;letter-spacing:.07em;color:#a3afb2;font-weight:680;text-transform:uppercase}
     .empty{font-size:12px;color:#89989b;text-align:center;padding:35px 8px 30px;margin:auto 0}
     .add-card{border:1px dashed #bacbcc;background:transparent;color:#5d7776;border-radius:10px;margin:0 11px 12px;padding:10px 12px;font-size:12px;font-weight:760;text-align:left}
     .add-card:hover{border-color:var(--accent);background:#fff9}
     .footer{padding-top:18px;color:#819096;font-size:12px;display:flex;align-items:center;gap:8px;justify-content:space-between;border-top:1px solid var(--stroke)}
-    .footer code{font-size:11px;border:1px solid #e1e7e7;padding:3px 6px;border-radius:5px;color:#75868b;background:#fff}
     dialog{position:fixed;inset:0;border:1px solid #d9e4e2;border-radius:18px;box-shadow:0 30px 100px #091c2870;padding:0;background:#fff;color:var(--ink);width:min(510px,calc(100vw - 32px));max-height:90vh;overflow:auto}
     dialog::backdrop{background:#152d36a8;backdrop-filter:blur(3px)}
     .dialog-inner{padding:25px 27px 23px}.dialog-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px}
@@ -100,12 +98,12 @@
       <div class="right"><div id="syncStatus" class="sync-status" data-mode="local" role="status" aria-live="polite"><span class="status-dot"></span><span id="syncText">Checking server…</span></div><button class="top-icon" id="refresh" type="button" title="Reload board state">Refresh</button></div>
     </header>
     <section class="hero" aria-label="Board controls">
-      <div><div class="overline">Your workspace</div><div class="heading"><h1 id="boardTitle">My board</h1><button class="edit-title edit-control" id="renameBoard" type="button" title="Rename board" aria-label="Rename board">✎</button></div><p class="subtitle">See what matters. Move work forward. Keep it simple.</p></div>
+      <div><div class="heading"><h1 id="boardTitle">My board</h1><button class="edit-title edit-control" id="renameBoard" type="button" title="Rename board" aria-label="Rename board">✎</button></div></div>
       <div class="tools"><input class="search" type="search" id="search" placeholder="Search cards…" aria-label="Search cards"><button class="primary edit-control" id="addColumn" type="button">+ Add column</button></div>
     </section>
     <div class="banner" id="banner" role="alert" hidden><strong id="bannerHeading"></strong><span id="bannerText"></span><div id="bannerActions" class="banner-actions"></div></div>
     <main id="board" class="board" aria-label="Kanban columns"></main>
-    <footer class="footer"><span id="footerText">Open index.html to view your board without starting anything.</span><code>board.js · one state file</code></footer>
+    <footer class="footer"><span id="footerText">Open index.html to view your board without starting anything.</span></footer>
   </div>
   <dialog id="cardDialog" aria-labelledby="cardDialogTitle">
     <div class="dialog-inner">
@@ -122,6 +120,7 @@
     <div class="dialog-inner">
       <div class="dialog-head"><h2 id="nameDialogTitle">Rename</h2><button type="button" class="close" data-close="nameDialog" aria-label="Close">×</button></div>
       <label class="field">Name <input id="nameInput" maxlength="90" required></label>
+      <label class="field" id="colourField">Colour <input type="color" id="colourInput"></label>
       <p class="dialog-error" id="nameError"></p>
       <div class="dialog-actions"><button type="button" class="delete" id="deleteColumn">Delete column</button><button type="button" class="secondary" data-close="nameDialog">Cancel</button><button type="button" class="primary" id="saveName">Save</button></div>
     </div>
@@ -155,12 +154,12 @@
     const uniqueId = () => typeof crypto.randomUUID === "function" ? crypto.randomUUID() : "id-" + Date.now() + "-" + Math.random().toString(36).slice(2);
 
     function statusMessage() {
-      if (!onServer || !editing) return "Read-only · local HTML";
-      if (sync.mode === "synced") return "Saved · GitHub synchronized";
-      if (sync.mode === "pending") return "Saved locally · waiting for GitHub";
+      if (!onServer || !editing) return "Read-only";
+      if (sync.mode === "synced") return "Synced";
+      if (sync.mode === "pending") return "Waiting for GitHub";
       if (sync.mode === "checking") return "Checking GitHub…";
-      if (sync.mode === "conflict") return "Sync conflict · action needed";
-      return "Local editing · GitHub not connected";
+      if (sync.mode === "conflict") return "Sync conflict";
+      return "Not synced";
     }
     function statusUI() {
       $("syncStatus").dataset.mode = editing ? sync.mode : "local";
@@ -216,6 +215,7 @@
       if (!board || !Array.isArray(board.columns)) return;
       for (const [columnIndex, column] of board.columns.entries()) {
         const pane = make("section", "column"); pane.dataset.column = String(columnIndex);
+        if (column.color) {pane.classList.add("coloured"); pane.style.setProperty("--column-colour", column.color);}
         pane.setAttribute("aria-label", column.title);
         const head = make("div", "column-head");
         head.append(make("span", "marker"), make("h2", "", column.title), make("span", "count", column.cards.length));
@@ -234,7 +234,7 @@
           el.setAttribute("role", "button"); el.setAttribute("aria-label", `Open ${card.title}`);
           el.append(make("div", "card-title", card.title));
           if (card.description) el.append(make("p", "card-desc", card.description));
-          el.append(make("div", "card-number", `Card · ${column.title}`));
+          el.append(make("div", "card-number", column.title));
           el.addEventListener("click", () => openCard(card.id, column.id));
           el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") {e.preventDefault(); openCard(card.id, column.id);} });
           if (isWritable() && !$("search").value.trim()) {
@@ -360,6 +360,9 @@
       $("cardDialog").showModal();
       if (isWritable()) $("cardTitle").focus();
     }
+    // Same palette as the .marker rules in the stylesheet; a column keeps it until a colour is picked.
+    const MARKER_COLOURS = ["#a8adb0", "#79a99b", "#739fc0", "#b3a2be", "#7eaf8b"];
+    let colourTouched = false;
     function openName(type, id = null) {
       if (!isWritable()) return;
       nameTarget = {type,id}; $("nameError").textContent = "";
@@ -368,6 +371,10 @@
       $("nameInput").maxLength = type === "board" ? 90 : 70;
       $("nameInput").value = type === "board" ? board.title : column ? column.title : "";
       $("deleteColumn").hidden = type !== "column" || board.columns.length <= 1;
+      $("colourField").hidden = type === "board";
+      const index = column ? board.columns.indexOf(column) : board.columns.length;
+      $("colourInput").value = (column && column.color) || MARKER_COLOURS[Math.min(index, MARKER_COLOURS.length - 1)];
+      colourTouched = false;
       $("nameDialog").showModal(); $("nameInput").focus();
     }
     function findCard(value, cardId) {
@@ -431,13 +438,19 @@
     });
     $("saveName").addEventListener("click", async () => {
       const value = $("nameInput").value.trim();
+      const color = $("colourInput").value;
       if (!value) {$("nameError").textContent = "Enter a name.";return;}
       await change((next) => {
         if (nameTarget.type === "board") next.title = value;
-        else if (nameTarget.type === "add") next.columns.push({id:uniqueId(),title:value,cards:[]});
-        else next.columns.find(c => c.id === nameTarget.id).title = value;
+        else if (nameTarget.type === "add") next.columns.push(colourTouched ? {id:uniqueId(),title:value,cards:[],color} : {id:uniqueId(),title:value,cards:[]});
+        else {
+          const col = next.columns.find(c => c.id === nameTarget.id);
+          col.title = value;
+          if (colourTouched) col.color = color;
+        }
       }, () => $("nameDialog").close());
     });
+    $("colourInput").addEventListener("input", () => {colourTouched = true;});
     $("deleteColumn").addEventListener("click", async () => {
       const col = board.columns.find(c => c.id === nameTarget.id);
       if (col.cards.length) {$("nameError").textContent = "Move or delete its cards first.";return;}

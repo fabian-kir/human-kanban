@@ -42,6 +42,7 @@ USER_AGENT = "Human-Kanban/1.0"
 PREFIX = "window.KANBAN_BOARD = "
 REPO_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{6,70}$")
+COLOR_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 class KanbanError(Exception):
@@ -80,8 +81,11 @@ def validate_board(value: Any) -> dict[str, Any]:
     total = 0
     clean_columns = []
     for column in columns:
-        if not isinstance(column, dict) or set(column) != {"id", "title", "cards"}:
-            raise KanbanError("Every column requires id, title, and cards.")
+        if not isinstance(column, dict) or set(column) - {"color"} != {"id", "title", "cards"}:
+            raise KanbanError("Every column requires id, title, and cards (and may have a color).")
+        color = column.get("color")
+        if color is not None and (not isinstance(color, str) or not COLOR_PATTERN.fullmatch(color)):
+            raise KanbanError("Column colors must look like #3a7f6e.")
         cid, name, cards = column["id"], column["title"], column["cards"]
         if not isinstance(cid, str) or not ID_PATTERN.fullmatch(cid) or cid in seen:
             raise KanbanError("Column identifiers must be unique and valid.")
@@ -106,7 +110,10 @@ def validate_board(value: Any) -> dict[str, Any]:
             total += 1
             if total > 3000:
                 raise KanbanError("This board supports up to 3,000 cards.")
-        clean_columns.append({"id": cid, "title": name, "cards": clean_cards})
+        clean_column: dict[str, Any] = {"id": cid, "title": name, "cards": clean_cards}
+        if color is not None:
+            clean_column["color"] = color.lower()
+        clean_columns.append(clean_column)
     return {"version": 1, "title": title, "columns": clean_columns}
 
 

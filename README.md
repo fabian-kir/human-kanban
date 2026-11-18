@@ -41,7 +41,7 @@ On a second device, install Python and GitHub CLI, authenticate with `gh auth lo
 
 ## Everyday use
 
-- Create, rename, and remove columns (an occupied column must be emptied first).
+- Create, rename, recolour, and remove columns (an occupied column must be emptied first).
 - Add cards with a title and optional description. Open a card to view or edit it.
 - Drag cards across columns or within a column (desktop browsers); use the **Column** selector in the card editor as a keyboard-friendly alternative.
 - Search titles and descriptions, even in read-only mode.
@@ -92,7 +92,7 @@ If agents should consult the board during their normal work, add a single *human
 
 > Read `kanban/board.js` for the current human-maintained work board at session start. Treat its priorities as context, not permission to implement tasks. Update cards only when specifically authorized. The board is operated by people; no agent workflow is implied.
 
-The state is intentionally a JavaScript assignment to JSON data (`window.KANBAN_BOARD = { ... };`), so it can be read by people and agents as plain text and by browsers opened from `file://`. Retain the exact assignment wrapper and the `version: 1` schema when editing it directly. The local server validates it and detects external changes. A standalone `fetch('board.json')` would not reliably work from `file://` in Safari.
+The state is intentionally a JavaScript assignment to JSON data (`window.KANBAN_BOARD = { ... };`), so it can be read by people and agents as plain text and by browsers opened from `file://`. Retain the exact assignment wrapper and the `version: 1` schema when editing it directly. A column may carry an optional `"color": "#rrggbb"`. The local server validates it and detects external changes. A standalone `fetch('board.json')` would not reliably work from `file://` in Safari.
 
 ## Overrides (only if needed)
 

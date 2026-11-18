@@ -167,6 +167,15 @@ class TestBoardLogic(unittest.TestCase):
         with self.assertRaises(app.KanbanError):
             app.decode_board(b"alert('not board data');")
 
+    def test_column_color_is_optional_and_checked(self):
+        board = app.decode_board(self.path.read_bytes())
+        board["columns"][0]["color"] = "#3A7F6E"
+        self.assertEqual(app.decode_board(app.encode_board(board))["columns"][0]["color"], "#3a7f6e")
+        self.assertNotIn("color", app.decode_board(app.encode_board(board))["columns"][1])
+        board["columns"][0]["color"] = "red; background:url(x)"
+        with self.assertRaises(app.KanbanError):
+            app.encode_board(board)
+
     def test_removed_remote_file_is_preserved_as_conflict(self):
         self.store.sync_once()
         self.remote.raw = None
