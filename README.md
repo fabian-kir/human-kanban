@@ -61,7 +61,9 @@ The server checks GitHub every ~40 seconds and also wakes immediately after loca
 
 On a fresh clone, local `board.js` normally equals the remote file. If GitHub has moved ahead of the checkout and the checked-out file is still unmodified, the server can safely download it. If both copies differ without a known baseline, it asks you to choose.
 
-**GitHub history caveat:** Every Contents API update creates a commit on the selected remote branch (normally the default branch). This **does not run Git commands or update your local Git HEAD**. Consequently, if you later use ordinary Git to pull, push, or merge development changes, those remote board-state commits may need normal Git history reconciliation. The Kanban server will never reset, merge, or modify unrelated files for you. For a repository with frequent code development, consider using a dedicated board-state branch (`KANBAN_BRANCH`) after explicitly creating that branch and initializing its `board.js`.
+**GitHub history:** Every Contents API update creates a commit on the sync branch, `kanban-state` unless `KANBAN_BRANCH` names another. The code branch never receives board-state commits, so pulling, pushing and merging development work needs no reconciliation with them. When the sync branch does not exist yet, the server creates it once from the head of the default branch, through the GitHub API; that copy carries the default branch's `board.js` as the starting state. This **does not run Git commands or update your local Git HEAD**, and the Kanban server never resets, merges, or modifies unrelated files.
+
+Consequence for a checkout of the code branch: the local `board.js` follows `kanban-state`, so `git status` shows it modified. Leave it out of code commits. A fresh clone still starts correctly: an unmodified checked-out `board.js` is replaced by the newer copy from `kanban-state` on the first sync.
 
 ## Adding Human Kanban to an existing repository (later, optional)
 
@@ -99,7 +101,7 @@ The state is intentionally a JavaScript assignment to JSON data (`window.KANBAN_
 | Variable or flag | Purpose | Default |
 | --- | --- | --- |
 | `KANBAN_REPO=owner/name` | GitHub repository when `origin` is absent or not on github.com | Detect `origin` |
-| `KANBAN_BRANCH=name` | Remote branch to synchronize | GitHub default branch |
+| `KANBAN_BRANCH=name` | Remote branch to synchronize; created from the default branch if missing | `kanban-state` |
 | `KANBAN_REMOTE_PATH=kanban/board.js` | Path of board state **within the remote repo** | Detect relative to Git root |
 | `KANBAN_GITHUB_TOKEN=...` | GitHub token (do not commit) | `GH_TOKEN`, `GITHUB_TOKEN`, then `gh auth token` |
 | `KANBAN_PORT=8766` or `--port 8766` | Local HTTP port | `8765` |

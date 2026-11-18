@@ -37,6 +37,8 @@ BOARD_FILE = BASE / "board.js"
 MARKER_FILE = BASE / ".kanban-sync.json"
 BACKUP_DIR = BASE / ".kanban-backups"
 MAX_BODY = 512 * 1024
+# Board-state commits go to their own branch so they never land on the code branch.
+SYNC_BRANCH = "kanban-state"
 SYNC_INTERVAL = 40
 USER_AGENT = "Human-Kanban/1.0"
 PREFIX = "window.KANBAN_BOARD = "
@@ -196,7 +198,7 @@ def locate_target() -> tuple[str | None, str, str | None]:
     if (not remote_path or remote_path.startswith(".") or ".." in remote_path.split("/")
             or not all(re.fullmatch(r"[A-Za-z0-9_. -]+", part) for part in remote_path.split("/"))):
         raise KanbanError("KANBAN_REMOTE_PATH must be a safe repository-relative path.")
-    branch = os.environ.get("KANBAN_BRANCH", "").strip() or None
+    branch = os.environ.get("KANBAN_BRANCH", "").strip() or SYNC_BRANCH
     if branch and (not re.fullmatch(r"[A-Za-z0-9_./-]+", branch) or ".." in branch):
         raise KanbanError("KANBAN_BRANCH contains invalid characters.")
     return repo, remote_path, branch
@@ -271,6 +273,21 @@ class GitHubClient:
         response = self.request("GET", "")
         return str(response["default_branch"])
 
+    def ensure_branch(self, branch: str) -> None:
+        """Create a missing sync branch from the default branch's head."""
+        try:
+            self.request("GET", "/branches/" + urllib.parse.quote(branch, safe=""))
+            return
+        except GitHubError as exc:
+            if exc.status != 404:
+                raise
+        base = self.request("GET", "/git/ref/heads/" + urllib.parse.quote(self.default_branch(), safe="/"))
+        try:
+            self.request("POST", "/git/refs", {"ref": f"refs/heads/{branch}", "sha": base["object"]["sha"]})
+        except GitHubError as exc:
+            if exc.status != 422:  # 422: another device created it first
+                raise
+
     def get(self, target: Target) -> tuple[bytes, str] | None:
         path = "/contents/" + "/".join(urllib.parse.quote(p, safe="") for p in target.path.split("/"))
         try:
@@ -321,13 +338,16 @@ class BoardStore:
         self.branch = branch
         self.client = client or (GitHubClient(token, repo) if repo and token else None)
         decode_board(self.board_path.read_bytes())
-        self.target: Target | None = Target(repo, self.remote_path, branch) if repo and branch else None
+        self.target: Target | None = None
 
     def _ensure_target(self) -> Target | None:
         if not self.client or not self.repo:
             return None
         if self.target is None:
-            self.branch = self.branch or self.client.default_branch()
+            if self.branch:
+                self.client.ensure_branch(self.branch)
+            else:
+                self.branch = self.client.default_branch()
             self.target = Target(self.repo, self.remote_path, self.branch)
         return self.target
 

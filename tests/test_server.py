@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -20,9 +21,13 @@ class FakeGitHub:
     def __init__(self, raw=None):
         self.raw = raw
         self.puts = []
+        self.ensured = []
 
     def default_branch(self):
         return "main"
+
+    def ensure_branch(self, branch):
+        self.ensured.append(branch)
 
     def get(self, target):
         if self.raw is None:
@@ -35,6 +40,53 @@ class FakeGitHub:
             raise app.GitHubError("Remote changed", 409)
         self.puts.append((target, previous_sha))
         self.raw = raw
+
+
+class TestSyncBranch(unittest.TestCase):
+    def client(self, branch_exists):
+        client = app.GitHubClient("fake", "org/project")
+        calls = []
+
+        def request(method, path, data=None):
+            calls.append((method, path, data))
+            if path == "/branches/kanban-state" and not branch_exists:
+                raise app.GitHubError("missing", 404)
+            if path == "":
+                return {"default_branch": "main"}
+            if path == "/git/ref/heads/main":
+                return {"object": {"sha": "abc123"}}
+            return {}
+
+        client.request = request
+        return client, calls
+
+    def test_missing_sync_branch_is_created_from_default_head(self):
+        client, calls = self.client(branch_exists=False)
+        client.ensure_branch("kanban-state")
+        self.assertEqual(calls[-1], ("POST", "/git/refs", {"ref": "refs/heads/kanban-state", "sha": "abc123"}))
+
+    def test_existing_sync_branch_is_left_alone(self):
+        client, calls = self.client(branch_exists=True)
+        client.ensure_branch("kanban-state")
+        self.assertEqual([method for method, _, _ in calls], ["GET"])
+
+    def test_sync_defaults_to_the_state_branch_not_the_code_branch(self):
+        with unittest.mock.patch.dict(os.environ, {"KANBAN_REPO": "org/project", "KANBAN_REMOTE_PATH": "kanban/board.js"}):
+            os.environ.pop("KANBAN_BRANCH", None)
+            self.assertEqual(app.locate_target()[2], "kanban-state")
+
+    def test_store_ensures_its_branch_before_the_first_sync(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "board.js"
+            path.write_bytes((ROOT / "board.js").read_bytes())
+            remote = FakeGitHub(path.read_bytes())
+            store = app.BoardStore(
+                board_path=path, marker_path=Path(temp) / ".kanban-sync.json", repo="org/project",
+                remote_path="kanban/board.js", branch="kanban-state", token="fake", client=remote,
+            )
+            store.sync_once()
+            self.assertEqual(remote.ensured, ["kanban-state"])
+            self.assertEqual(store.info()["mode"], "synced")
 
 
 class TestBoardLogic(unittest.TestCase):
