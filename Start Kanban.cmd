@@ -17,6 +17,20 @@ if not defined PYTHON (
         if not errorlevel 1 set "PYTHON=python"
     )
 )
+if not defined PYTHON (
+    where python3 >nul 2>nul
+    if not errorlevel 1 (
+        python3 -c "import sys;sys.exit(0 if sys.version_info >= (3,10) else 1)" >nul 2>nul
+        if not errorlevel 1 set "PYTHON=python3"
+    )
+)
+rem A Python installed only through uv is on no PATH; ask uv for it.
+if not defined PYTHON (
+    where uv >nul 2>nul
+    if not errorlevel 1 (
+        for /f "usebackq delims=" %%i in (`uv python find --no-project ">=3.10" 2^>nul`) do set "PYTHON="%%i""
+    )
+)
 if not defined PYTHON goto pythonmissing
 echo.
 echo Starting Human Kanban...
@@ -29,6 +43,7 @@ goto fallback
 :pythonmissing
 echo ERROR: Python 3.10+ was not found. Install Python from https://www.python.org/downloads/windows/
 echo        During installation, enable the Python launcher / Add Python to PATH.
+echo        With uv installed, "uv python install 3.12" also works.
 echo        No third-party Python packages are required.
 goto fallback
 :serverfailed

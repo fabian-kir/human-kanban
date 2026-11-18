@@ -14,7 +14,7 @@ The board is for people. Agents can read and edit `board.js` like any other sour
 | **Windows** | Double-click **`Start Kanban.cmd`** | Open **`index.html`** in Edge or Chrome |
 | **Terminal** | `bash start-kanban.bash` or `python3 server.py` | Open **`index.html`** directly |
 
-The launcher checks Python and required files, prints actionable errors, and opens `http://127.0.0.1:8765/` in your default browser. **Python 3.10+ is the only runtime requirement.** No `pip install` is needed. The terminal window must remain running while you edit; Ctrl-C stops the server. A different port can be selected with `--port 8766`.
+The launcher checks Python and required files, prints actionable errors, and opens `http://127.0.0.1:8765/` in your default browser. **Python 3.10+ is the only runtime requirement.** No `pip install` is needed. The launcher finds a suitable Python even when the first `python3` on `PATH` is too old (macOS ships 3.9 at `/usr/bin/python3`): it tries `python3.14` down to `python3.10`, Homebrew's and `~/.local/bin`'s `python3`, then any Python [uv](https://docs.astral.sh/uv/) manages (`uv python find`). The terminal window must remain running while you edit; Ctrl-C stops the server. A different port can be selected with `--port 8766`.
 
 Without Python, or if the server is stopped, `index.html` loads the existing board from `board.js` in **read-only mode**. Its editing controls are hidden. You still can search, open cards, and read descriptions. The browser never needs direct filesystem-write permissions.
 
@@ -111,7 +111,7 @@ These are optional overrides, not required configuration files. Nothing needs to
 
 | Situation | What happens | What to do |
 | --- | --- | --- |
-| Python missing / too old | Launcher prints the requirement and stops | Install Python 3.10+; meanwhile open `index.html` |
+| Python missing / too old | Launcher prints the requirement and stops | Install Python 3.10+ (python.org, `brew install python`, or `uv python install 3.12`); meanwhile open `index.html` |
 | One of the three core files missing | Launcher refuses to start | Keep `index.html`, `board.js`, `server.py` together |
 | Port already in use | Server reports a bind error | Stop the other server or use `--port 8766` |
 | No Git remote | Local editing works; sync says not connected | Publish privately, or use `KANBAN_REPO` |
